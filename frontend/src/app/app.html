@@ -1,0 +1,229 @@
+@if (!isReady()) {
+  <div class="app-starting" role="status">{{ t('common.loading') }}</div>
+} @else if (!auth.isAuthenticated()) {
+  <app-auth-screen (authenticated)="onAuthenticated()" />
+} @else {
+<div class="app-shell">
+  <aside class="sidebar" [class.sidebar-open]="mobileNavOpen()">
+    <a class="brand" href="#" (click)="$event.preventDefault(); setPage('dashboard')">
+      <span class="brand-mark"><svg lucideSprout [size]="22"></svg></span>
+      <span class="brand-copy"><strong>{{ t('brand.name') }}</strong><small>{{ t('brand.tagline') }}</small></span>
+    </a>
+
+    <div class="nav-caption">{{ t('nav.groupFarm') }}</div>
+    <nav class="primary-nav" [attr.aria-label]="t('nav.groupFarm')">
+      <button class="nav-item" [class.nav-active]="activePage() === 'dashboard'" (click)="setPage('dashboard')">
+        <svg lucideHouse [size]="18"></svg><span>{{ t('nav.dashboard') }}</span>
+      </button>
+      <button class="nav-item" [class.nav-active]="activePage() === 'farms'" (click)="setPage('farms')">
+        <svg lucideMap [size]="18"></svg><span>{{ t('nav.farms') }}</span><span class="nav-count">{{ farms().length }}</span>
+      </button>
+      <button class="nav-item" [class.nav-active]="activePage() === 'crops'" (click)="setPage('crops')">
+        <svg lucideSprout [size]="18"></svg><span>{{ t('nav.crops') }}</span><span class="nav-count">{{ crops().length }}</span>
+      </button>
+      <button class="nav-item" [class.nav-active]="activePage() === 'activities'" (click)="setPage('activities')">
+        <svg lucideNotebookPen [size]="18"></svg><span>{{ t('nav.activities') }}</span>
+      </button>
+      <button class="nav-item" [class.nav-active]="activePage() === 'assistant'" (click)="setPage('assistant')">
+        <svg lucideMessageCircleMore [size]="18"></svg><span>{{ t('nav.assistant') }}</span><span class="nav-new">{{ t('nav.assistantBadge') }}</span>
+      </button>
+    </nav>
+
+    <div class="nav-caption secondary-caption">{{ t('nav.management') }}</div>
+    <nav class="primary-nav" [attr.aria-label]="t('nav.management')">
+      <button class="nav-item" [class.nav-active]="activePage() === 'farmers'" (click)="setPage('farmers')">
+        <svg lucideUsers [size]="18"></svg><span>{{ t('nav.farmers') }}</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="support-card">
+        <span class="support-icon"><svg lucideShieldCheck [size]="17"></svg></span>
+        <p>{{ t('nav.groupFarm') }}<br><strong>{{ t('nav.deviceData') }}</strong></p>
+        <small>{{ t('nav.localDemo') }}</small>
+      </div>
+      <div class="profile-button">
+        <span class="avatar">{{ auth.farmer()?.fullName?.charAt(0) }}</span>
+        <span class="profile-copy"><strong>{{ auth.farmer()?.fullName }}</strong><small>{{ t('nav.accountType') }}</small></span>
+      </div>
+      <label class="profile-language"><span>{{ t('auth.language') }}</span><select [ngModel]="language.language()" (ngModelChange)="changeLanguage($event)" name="profileLanguage"><option value="gu">ગુજરાતી</option><option value="hi">हिंदी</option><option value="en">English</option></select></label>
+      <button class="profile-logout" type="button" (click)="logout()"><svg lucideLogOut [size]="16"></svg>{{ t('auth.signOut') }}</button>
+    </div>
+  </aside>
+
+  <main class="main-area">
+    <header class="topbar">
+      <button class="mobile-menu icon-button" type="button" [attr.aria-label]="t('nav.mobileMenu')" (click)="mobileNavOpen.set(!mobileNavOpen())">
+        <svg lucideMenu [size]="20"></svg>
+      </button>
+      <div class="breadcrumb"><span>{{ t('brand.name') }}</span><span class="breadcrumb-slash">/</span><strong>{{ pageTitle() }}</strong></div>
+      <div class="topbar-actions">
+        <span class="today-label"><svg lucideCalendarDays [size]="15"></svg>{{ today() }}</span>
+        <button class="icon-button notification-button" type="button" [attr.aria-label]="t('nav.notifications')"><svg lucideBell [size]="18"></svg><i></i></button>
+      </div>
+    </header>
+
+    <div class="page-content">
+      @if (activePage() === 'dashboard') {
+        <section class="welcome-row">
+          <div>
+            <p class="eyebrow">{{ t('dashboard.eyebrow') }}</p>
+            <h1>{{ t('dashboard.greeting') }}, {{ auth.farmer()?.fullName }} <span class="sun-mark">☀</span></h1>
+            <p class="welcome-subtitle">{{ t('dashboard.subtitle') }}</p>
+          </div>
+          <button class="button button-primary" type="button" (click)="openFarmDialog()"><svg lucidePlus [size]="17"></svg> {{ t('dashboard.addFarm') }}</button>
+        </section>
+
+        <section class="field-banner" [attr.aria-label]="t('dashboard.summary')">
+          <div class="banner-copy">
+            <span class="banner-kicker"><svg lucideLeaf [size]="15"></svg> {{ t('dashboard.bannerKicker') }}</span>
+            <h2>{{ t('dashboard.bannerLine1') }}<br>{{ t('dashboard.bannerLine2') }}<br><em>{{ t('dashboard.bannerLine3') }}</em></h2>
+            <button type="button" class="banner-link" (click)="setPage('assistant')">{{ t('dashboard.bannerLink') }} <svg lucideArrowUpRight [size]="16"></svg></button>
+          </div>
+          <div class="banner-note"><span class="note-dot"></span> {{ t('dashboard.bannerNote') }}</div>
+        </section>
+
+        <section class="summary-grid" [attr.aria-label]="t('dashboard.summary')">
+          <article class="summary-item">
+            <div class="summary-icon icon-green"><svg lucideMap [size]="19"></svg></div>
+            <div class="summary-label">{{ t('dashboard.totalFarms') }}</div><strong>{{ farms().length }}</strong><small>{{ t('dashboard.farmsCount') }}</small>
+          </article>
+          <article class="summary-item">
+            <div class="summary-icon icon-orange"><svg lucideWheat [size]="19"></svg></div>
+            <div class="summary-label">{{ t('dashboard.activeCrops') }}</div><strong>{{ crops().length }}</strong><small>{{ t('dashboard.cropsCount') }}</small>
+          </article>
+          <article class="summary-item">
+            <div class="summary-icon icon-blue"><svg lucideActivity [size]="19"></svg></div>
+            <div class="summary-label">{{ t('dashboard.todayActivities') }}</div><strong>{{ activities().length }}</strong><small>{{ t('dashboard.activitiesCount') }}</small>
+          </article>
+          <article class="summary-item summary-weather">
+            <div class="summary-icon icon-sand"><svg lucideCloudOff [size]="19"></svg></div>
+            <div class="summary-label">{{ t('dashboard.weather') }}</div><strong class="weather-status">{{ t('common.notConnected') }}</strong><small>{{ t('dashboard.noLiveWeather') }}</small>
+          </article>
+        </section>
+
+        <section class="dashboard-grid">
+          <div class="section-panel activity-panel">
+            <div class="panel-heading"><div><p class="eyebrow">{{ t('activity.logbook') }}</p><h2>{{ t('activity.recent') }}</h2></div><button class="text-action" type="button" (click)="setPage('activities')">{{ t('activity.all') }} <svg lucideArrowUpRight [size]="15"></svg></button></div>
+            @if (activities().length === 0) {
+              <div class="empty-inline"><span class="empty-icon"><svg lucideNotebookPen [size]="20"></svg></span><div><strong>{{ t('activity.none') }}</strong><p>{{ t('activity.emptyHint') }}</p></div><button class="small-add" type="button" [attr.aria-label]="t('activity.add')" (click)="openActivityDialog()"><svg lucidePlus [size]="18"></svg></button></div>
+            } @else {
+              <div class="activity-list">
+                @for (activity of activities().slice(0, 4); track activity.id) {
+                  <div class="activity-row"><span class="activity-dot"><svg lucideDroplets [size]="16"></svg></span><div class="activity-copy"><strong>{{ displayActivity(activity.type) }} · {{ activity.cropName }}</strong><small>{{ activity.description }}</small></div><time>{{ activity.date }}</time></div>
+                }
+              </div>
+            }
+          </div>
+          <div class="section-panel weather-panel">
+            <div class="panel-heading"><div><p class="eyebrow">{{ t('weather.localInfo') }}</p><h2>{{ t('weather.title') }}</h2></div><span class="panel-icon"><svg lucideCloudSun [size]="20"></svg></span></div>
+            <div class="weather-empty"><span class="weather-illustration"><svg lucideCloudOff [size]="31"></svg></span><strong>{{ t('weather.notConnected') }}</strong><p>{{ t('weather.configure') }}</p><span class="quiet-status">{{ t('weather.noLive') }}</span></div>
+          </div>
+        </section>
+
+        <section class="section-panel crop-overview">
+          <div class="panel-heading"><div><p class="eyebrow">{{ t('crop.season') }}</p><h2>{{ t('crop.yourCrops') }}</h2></div><button class="text-action" type="button" (click)="setPage('crops')">{{ t('crop.all') }} <svg lucideArrowUpRight [size]="15"></svg></button></div>
+          @if (crops().length === 0) {
+            <div class="crop-empty"><div class="crop-empty-art"><svg lucideSprout [size]="36"></svg></div><div><strong>{{ t('crop.startHere') }}</strong><p>{{ t('crop.emptyHint') }}</p></div><button class="button button-outline" type="button" (click)="openCropDialog()"><svg lucidePlus [size]="16"></svg> {{ t('crop.addFirst') }}</button></div>
+          } @else {
+            <div class="crop-table"><div class="table-head"><span>{{ t('crop.name') }}</span><span>{{ t('crop.farm') }}</span><span>{{ t('crop.sowingDate') }}</span><span>{{ t('crop.status') }}</span><span></span></div>@for (crop of crops(); track crop.id) {<div class="table-row"><strong><span class="crop-symbol"><svg lucideWheat [size]="16"></svg></span>{{ crop.name }} <small>{{ crop.variety }}</small></strong><span>{{ crop.farmName }}</span><span>{{ crop.sowingDate || '—' }}</span><span class="status-pill">{{ displayStatus(crop.status) }}</span><span class="row-actions"><button type="button" [attr.aria-label]="t('dialog.editCropAria')" (click)="openCropDialog(crop)"><svg lucidePencil [size]="15"></svg></button><button type="button" [attr.aria-label]="t('dialog.deleteCropAria')" (click)="deleteCrop(crop.id)"><svg lucideTrash [size]="15"></svg></button></span></div>}</div>
+          }
+        </section>
+      }
+
+      @if (activePage() === 'farms') {
+        <section class="page-heading-row"><div><p class="eyebrow">{{ t('farm.landRecord') }}</p><h1>{{ t('farm.heading') }}</h1><p class="welcome-subtitle">{{ t('farm.subtitle') }}</p></div><button class="button button-primary" type="button" (click)="openFarmDialog()"><svg lucidePlus [size]="17"></svg> {{ t('dashboard.addFarm') }}</button></section>
+        <section class="section-panel records-panel"><div class="records-toolbar"><div class="record-count">{{ farms().length }} {{ t('farm.count') }}</div><label class="search-field"><svg lucideSearch [size]="17"></svg><input [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" name="farmSearch" [placeholder]="t('farm.search')" [attr.aria-label]="t('farm.search')"></label></div>
+          @if (filteredFarms().length === 0) {<div class="empty-state"><span class="empty-state-icon"><svg lucideMap [size]="24"></svg></span><h2>{{ farms().length === 0 ? t('farm.none') : t('farm.noSearchMatch') }}</h2><p>{{ t('farm.emptyHint') }}</p><button class="button button-outline" type="button" (click)="openFarmDialog()"><svg lucidePlus [size]="16"></svg> {{ t('farm.addFirst') }}</button></div>}
+          @else {<div class="crop-table"><div class="table-head farm-table-head"><span>{{ t('farm.name') }}</span><span>{{ t('farm.village') }}</span><span>{{ t('farm.area') }}</span><span>{{ t('farm.soil') }}</span><span>{{ t('farm.irrigation') }}</span><span></span></div>@for (farm of filteredFarms(); track farm.id) {<div class="table-row farm-table-row"><strong><span class="farm-symbol"><svg lucideMapPin [size]="15"></svg></span>{{ farm.name }}</strong><span>{{ farm.village }}</span><span>{{ farm.area }} {{ displayUnit(farm.unit) }}</span><span>{{ displaySoil(farm.soil) }}</span><span>{{ displayIrrigation(farm.irrigation) }}</span><span class="row-actions"><button type="button" [attr.aria-label]="t('dialog.editFarmAria')" (click)="openFarmDialog(farm)"><svg lucidePencil [size]="15"></svg></button><button type="button" [attr.aria-label]="t('dialog.deleteFarmAria')" (click)="deleteFarm(farm.id)"><svg lucideTrash [size]="15"></svg></button></span></div>}</div>}
+        </section>
+        <p class="local-data-note"><svg lucideShieldCheck [size]="15"></svg> {{ t('farm.localNote') }}</p>
+      }
+
+      @if (activePage() === 'crops') {
+        <section class="page-heading-row"><div><p class="eyebrow">{{ t('crop.season') }}</p><h1>{{ t('page.crops') }}</h1><p class="welcome-subtitle">{{ t('crop.emptyHint') }}</p></div><button class="button button-primary" type="button" (click)="openCropDialog()"><svg lucidePlus [size]="17"></svg> {{ t('crop.add') }}</button></section>
+        <section class="section-panel records-panel"><div class="records-toolbar"><div class="record-count">{{ crops().length }} {{ t('crop.count') }}</div></div>
+          @if (crops().length === 0) {<div class="empty-state"><span class="empty-state-icon"><svg lucideSprout [size]="24"></svg></span><h2>{{ t('crop.recordHere') }}</h2><p>{{ t('crop.addFarmFirst') }}</p><button class="button button-outline" type="button" [disabled]="farms().length === 0" (click)="openCropDialog()"><svg lucidePlus [size]="16"></svg> {{ t('crop.add') }}</button>@if (farms().length === 0) {<button class="plain-link" type="button" (click)="setPage('farms')">{{ t('crop.firstFarm') }}</button>}</div>}
+          @else {<div class="crop-table"><div class="table-head"><span>{{ t('crop.name') }}</span><span>{{ t('crop.farm') }}</span><span>{{ t('crop.sowingDate') }}</span><span>{{ t('crop.status') }}</span><span></span></div>@for (crop of crops(); track crop.id) {<div class="table-row"><strong><span class="crop-symbol"><svg lucideWheat [size]="16"></svg></span>{{ crop.name }} <small>{{ crop.variety }}</small></strong><span>{{ crop.farmName }}</span><span>{{ crop.sowingDate || '—' }}</span><span class="status-pill">{{ displayStatus(crop.status) }}</span><span class="row-actions"><button type="button" [attr.aria-label]="t('dialog.editCropAria')" (click)="openCropDialog(crop)"><svg lucidePencil [size]="15"></svg></button><button type="button" [attr.aria-label]="t('dialog.deleteCropAria')" (click)="deleteCrop(crop.id)"><svg lucideTrash [size]="15"></svg></button></span></div>}</div>}
+        </section>
+        <p class="local-data-note"><svg lucideShieldCheck [size]="15"></svg> {{ t('crop.localNote') }}</p>
+      }
+
+      @if (activePage() === 'activities') {
+        <section class="page-heading-row"><div><p class="eyebrow">{{ t('activity.logbook') }}</p><h1>{{ t('page.activities') }}</h1><p class="welcome-subtitle">{{ t('activity.emptyHint') }}</p></div><button class="button button-primary" type="button" [disabled]="crops().length === 0" (click)="openActivityDialog()"><svg lucidePlus [size]="17"></svg> {{ t('activity.add') }}</button></section>
+        <section class="section-panel records-panel"><div class="records-toolbar"><div class="record-count">{{ activities().length }} {{ t('activity.all') }}</div></div>
+          @if (activities().length === 0) {<div class="empty-state"><span class="empty-state-icon"><svg lucideNotebookPen [size]="24"></svg></span><h2>{{ t('activity.none') }}</h2><p>{{ t('activity.emptyHint') }}</p><button class="button button-outline" type="button" [disabled]="crops().length === 0" (click)="openActivityDialog()"><svg lucidePlus [size]="16"></svg> {{ t('activity.add') }}</button>@if (crops().length === 0) {<button class="plain-link" type="button" (click)="setPage('crops')">{{ t('crop.add') }}</button>}</div>}
+          @else {<div class="crop-table"><div class="table-head activity-table-head"><span>{{ t('dialog.activityType') }}</span><span>{{ t('crop.name') }}</span><span>{{ t('dialog.activityDate') }}</span><span>{{ t('dialog.description') }}</span><span></span></div>@for (activity of activities(); track activity.id) {<div class="table-row activity-table-row"><strong><span class="activity-dot"><svg lucideDroplets [size]="15"></svg></span>{{ displayActivity(activity.type) }}</strong><span>{{ activity.cropName }}</span><span>{{ activity.date }}</span><span>{{ activity.description }}</span><span class="row-actions"><button type="button" [attr.aria-label]="t('dialog.deleteActivityAria')" (click)="deleteActivity(activity.id)"><svg lucideTrash [size]="15"></svg></button></span></div>}</div>}
+        </section>
+        <p class="local-data-note"><svg lucideShieldCheck [size]="15"></svg> {{ t('activity.localNote') }}</p>
+      }
+
+      @if (activePage() === 'assistant') {
+        <section class="page-heading-row assistant-heading"><div><p class="eyebrow">{{ t('assistant.kicker') }}</p><h1>{{ t('assistant.title') }}</h1><p class="welcome-subtitle">{{ t('assistant.subtitle') }}</p></div><span class="demo-badge"><span></span> {{ t('assistant.demo') }}</span></section>
+        <section class="assistant-layout">
+          <div class="chat-panel">
+            <div class="chat-topline"><div class="assistant-identity"><span class="assistant-mark"><svg lucideSprout [size]="19"></svg></span><div><strong>{{ t('assistant.name') }}</strong><small>{{ t('assistant.mockNote') }}</small></div></div><button class="plain-link" type="button" (click)="clearChat()">{{ t('assistant.newConversation') }}</button></div>
+            <div class="chat-messages" aria-live="polite">
+              @for (message of messages(); track $index) {
+                <div class="chat-message" [class.message-user]="message.role === 'farmer'">
+                  @if (message.role === 'assistant') {<span class="message-avatar"><svg lucideSprout [size]="15"></svg></span>}
+                  <div class="message-bubble"><small>{{ message.role === 'farmer' ? t('assistant.you') : t('assistant.label') }}</small><p>{{ message.text }}</p></div>
+                </div>
+              }
+            </div>
+            <div class="chat-prompts"><span>{{ t('assistant.promptStart') }}</span><button type="button" (click)="usePrompt(t('assistant.questionCotton'))">{{ t('assistant.questionCotton') }}</button><button type="button" (click)="usePrompt(t('assistant.questionWheat'))">{{ t('assistant.questionWheat') }}</button><button type="button" (click)="usePrompt(t('assistant.questionTomato'))">{{ t('assistant.questionTomato') }}</button><button type="button" (click)="usePrompt(t('assistant.questionGroundnut'))">{{ t('assistant.questionGroundnut') }}</button></div>
+            @if (imagePreview()) {<div class="chat-image-preview"><img [src]="imagePreview()" alt=""><button type="button" [attr.aria-label]="t('assistant.removeImage')" (click)="removeSelectedImage()"><svg lucideX [size]="15"></svg></button></div>}
+            @if (voiceStatus()) {<p class="voice-status" role="status">{{ voiceStatus() }}</p>}
+            <form class="chat-compose" (ngSubmit)="sendMessage()"><input type="file" #imageInput accept="image/jpeg,image/png,.jpg,.jpeg" hidden (change)="selectImage($event)"><button type="button" class="compose-tool" [attr.aria-label]="t('assistant.uploadImage')" (click)="imageInput.click()"><svg lucideImage [size]="18"></svg></button><button type="button" class="compose-tool" [class.recording]="recording()" [attr.aria-label]="t('assistant.mic')" (click)="startRecording()"><svg lucideMic [size]="18"></svg></button><input [ngModel]="chatDraft()" (ngModelChange)="chatDraft.set($event)" name="chatDraft" [placeholder]="t('assistant.placeholder')" [attr.aria-label]="t('assistant.placeholder')" autocomplete="off"><button type="submit" class="send-button" [disabled]="!chatDraft().trim() || assistantLoading()" [attr.aria-label]="t('assistant.send')"><svg lucideSend [size]="17"></svg></button></form>
+            <div class="speech-controls"><button type="button" (click)="speakLatest()"><svg lucideVolume2 [size]="15"></svg>{{ t('assistant.play') }}</button><button type="button" (click)="pauseSpeech()"><svg lucidePause [size]="15"></svg>{{ t('assistant.pause') }}</button><button type="button" (click)="resumeSpeech()"><svg lucidePlay [size]="15"></svg>{{ t('assistant.resume') }}</button><button type="button" (click)="stopSpeech()"><svg lucideSquare [size]="15"></svg>{{ t('assistant.stop') }}</button></div>
+            <p class="chat-disclaimer">{{ t('assistant.disclaimer') }}</p>
+          </div>
+          <aside class="assistant-aside"><span class="aside-illustration"><svg lucideLeaf [size]="25"></svg></span><p class="eyebrow">{{ t('assistant.goodAnswer') }}</p><h2>{{ t('assistant.contextTitle') }}</h2><ul><li>{{ t('assistant.cropVariety') }}</li><li>{{ t('assistant.location') }}</li><li>{{ t('assistant.soil') }}</li><li>{{ t('assistant.growthStage') }}</li></ul><div class="aside-divider"></div><h3>{{ t('assistant.recent') }}</h3>@if (conversations().length === 0) {<p class="aside-small">{{ t('assistant.noConversations') }}</p>} @else {<div class="recent-conversations">@for (conversation of conversations().slice(0, 5); track conversation.conversationId) {<div class="recent-conversation" [class.selected]="selectedConversationId() === conversation.conversationId"><button type="button" (click)="openConversation(conversation)">{{ conversation.title }}</button><button type="button" [attr.aria-label]="t('assistant.deleteConversation')" (click)="deleteConversation(conversation)"><svg lucideTrash [size]="14"></svg></button></div>}</div>}<p class="aside-small">{{ t('assistant.noLiveData') }}</p></aside>
+        </section>
+      }
+
+      @if (activePage() === 'farmers') {
+        <section class="page-heading-row"><div><p class="eyebrow">{{ t('farmer.registrationPhase') }}</p><h1>{{ t('farmer.heading') }}</h1><p class="welcome-subtitle">{{ t('farmer.subtitle') }}</p></div><button class="button button-primary" type="button" (click)="openFarmerDialog()"><svg lucidePlus [size]="17"></svg> {{ t('farmer.add') }}</button></section>
+        @if (farmerMessage()) {<div class="notice-success"><svg lucideCheck [size]="16"></svg>{{ farmerMessage() }}</div>}
+        @if (farmerError()) {<div class="notice-error"><svg lucideCloudOff [size]="16"></svg>{{ farmerError() }}<button type="button" class="retry-link" (click)="loadFarmers()">{{ t('common.retry') }}</button></div>}
+        <section class="section-panel records-panel"><div class="records-toolbar"><div class="record-count">{{ farmers().length }} {{ t('farmer.count') }}</div><button class="icon-button refresh-button" type="button" [attr.aria-label]="t('farmer.refresh')" (click)="loadFarmers()"><svg lucideActivity [size]="17"></svg></button></div>
+          @if (farmerLoading()) {<div class="loading-state"><span class="loader"></span>{{ t('farmer.loading') }}</div>}
+          @else if (farmers().length === 0) {<div class="empty-state"><span class="empty-state-icon"><svg lucideUsers [size]="24"></svg></span><h2>{{ t('farmer.none') }}</h2><p>{{ t('farmer.emptyHint') }}</p><button class="button button-outline" type="button" (click)="openFarmerDialog()"><svg lucidePlus [size]="16"></svg> {{ t('farmer.addFirst') }}</button></div>}
+          @else {<div class="crop-table farmer-table"><div class="table-head"><span>{{ t('auth.fullName') }}</span><span>{{ t('farmer.field.mobile') }}</span><span>{{ t('farmer.field.village') }}</span><span>{{ t('farmer.field.taluka') }}</span><span>{{ t('farmer.field.district') }}</span><span></span></div>@for (farmer of farmers(); track farmer.farmerId) {<div class="table-row"><strong><span class="farmer-symbol">{{ farmer.fullName.charAt(0) }}</span>{{ farmer.fullName }}</strong><span>{{ farmer.mobileNumber }}</span><span>{{ farmer.village }}</span><span>{{ farmer.taluka }}</span><span>{{ farmer.district }}</span><span class="row-actions"><button type="button" [attr.aria-label]="t('dialog.editFarmerAria')" (click)="openFarmerDialog(farmer)"><svg lucidePencil [size]="15"></svg></button><button type="button" [attr.aria-label]="t('dialog.deleteFarmerAria')" (click)="deleteFarmer(farmer)"><svg lucideTrash [size]="15"></svg></button></span></div>}</div>}
+        </section>
+      }
+    </div>
+  </main>
+
+  @if (localDialog() === 'farm') {
+    <div class="modal-backdrop" (click)="localDialog.set(null)"><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="farm-dialog-title" (click)="$event.stopPropagation()">
+      <div class="modal-heading"><div><p class="eyebrow">{{ t('farm.landRecord') }}</p><h2 id="farm-dialog-title">{{ localEditId() ? t('dialog.farmEdit') : t('dialog.farmNew') }}</h2></div><button class="icon-button" type="button" [attr.aria-label]="t('common.close')" (click)="localDialog.set(null)"><svg lucideX [size]="19"></svg></button></div>
+      <form #farmForm="ngForm" (ngSubmit)="saveFarm()"><div class="form-grid"><label class="form-field span-two"><span>{{ t('farm.name') }}</span><input [(ngModel)]="farmDraft.name" name="farmName" required [placeholder]="t('farmer.locationName')"></label><label class="form-field"><span>{{ t('farm.village') }}</span><input [(ngModel)]="farmDraft.village" name="farmVillage" required [placeholder]="t('farmer.villageName')"></label><label class="form-field"><span>{{ t('farm.area') }}</span><input [(ngModel)]="farmDraft.area" name="farmArea" type="number" min="0.01" step="0.01" required></label><label class="form-field"><span>{{ t('farm.unit') }}</span><select [(ngModel)]="farmDraft.unit" name="farmUnit"><option value="એકર">{{ t('unit.acre') }}</option><option value="હેક્ટર">{{ t('unit.hectare') }}</option></select></label><label class="form-field"><span>{{ t('farm.soil') }}</span><input [(ngModel)]="farmDraft.soil" name="farmSoil" [placeholder]="t('farmer.blackSoil')"></label><label class="form-field span-two"><span>{{ t('farm.irrigation') }}</span><select [(ngModel)]="farmDraft.irrigation" name="farmIrrigation"><option value="">{{ t('irrigation.choose') }}</option><option value="ટપક સિંચાઈ">{{ t('irrigation.drip') }}</option><option value="ફુવારા સિંચાઈ">{{ t('irrigation.sprinkler') }}</option><option value="નહેર">{{ t('irrigation.canal') }}</option><option value="વરસાદ આધારિત">{{ t('irrigation.rain') }}</option><option value="અન્ય">{{ t('irrigation.other') }}</option></select></label></div><div class="modal-footer"><button class="button button-quiet" type="button" (click)="localDialog.set(null)">{{ t('common.cancel') }}</button><button class="button button-primary" type="submit" [disabled]="farmForm.invalid"><svg lucideCheck [size]="16"></svg> {{ t('dialog.saveFarm') }}</button></div></form>
+    </section></div>
+  }
+
+  @if (localDialog() === 'crop') {
+    <div class="modal-backdrop" (click)="localDialog.set(null)"><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="crop-dialog-title" (click)="$event.stopPropagation()">
+      <div class="modal-heading"><div><p class="eyebrow">{{ t('crop.season') }}</p><h2 id="crop-dialog-title">{{ localEditId() ? t('dialog.cropEdit') : t('dialog.cropNew') }}</h2></div><button class="icon-button" type="button" [attr.aria-label]="t('common.close')" (click)="localDialog.set(null)"><svg lucideX [size]="19"></svg></button></div>
+      <form #cropForm="ngForm" (ngSubmit)="saveCrop()"><div class="form-grid"><label class="form-field span-two"><span>{{ t('crop.farm') }}</span><select [(ngModel)]="cropDraft.farmName" name="cropFarm" required><option value="">{{ t('dialog.chooseFarm') }}</option>@for (farm of farms(); track farm.id) {<option [value]="farm.name">{{ farm.name }}</option>}</select></label><label class="form-field"><span>{{ t('crop.name') }}</span><input [(ngModel)]="cropDraft.name" name="cropName" required [placeholder]="t('assistant.questionCotton')"></label><label class="form-field"><span>{{ t('dialog.cropVariety') }}</span><input [(ngModel)]="cropDraft.variety" name="cropVariety" [placeholder]="t('dialog.cropVarietyPlaceholder')"></label><label class="form-field"><span>{{ t('crop.sowingDate') }}</span><input [(ngModel)]="cropDraft.sowingDate" name="sowingDate" type="date"></label><label class="form-field"><span>{{ t('crop.status') }}</span><select [(ngModel)]="cropDraft.status" name="cropStatus"><option value="વાવણીનું આયોજન">{{ t('status.planned') }}</option><option value="વાવણી થઈ">{{ t('status.sown') }}</option><option value="વૃદ્ધિમાં">{{ t('status.growing') }}</option><option value="લણણી માટે તૈયાર">{{ t('status.ready') }}</option><option value="લણણી પૂર્ણ">{{ t('status.harvested') }}</option></select></label></div><div class="modal-footer"><button class="button button-quiet" type="button" (click)="localDialog.set(null)">{{ t('common.cancel') }}</button><button class="button button-primary" type="submit" [disabled]="cropForm.invalid"><svg lucideCheck [size]="16"></svg> {{ t('dialog.saveCrop') }}</button></div></form>
+    </section></div>
+  }
+
+  @if (localDialog() === 'activity') {
+    <div class="modal-backdrop" (click)="localDialog.set(null)"><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="activity-dialog-title" (click)="$event.stopPropagation()">
+      <div class="modal-heading"><div><p class="eyebrow">{{ t('activity.logbook') }}</p><h2 id="activity-dialog-title">{{ t('dialog.activityNew') }}</h2></div><button class="icon-button" type="button" [attr.aria-label]="t('common.close')" (click)="localDialog.set(null)"><svg lucideX [size]="19"></svg></button></div>
+      <form #activityForm="ngForm" (ngSubmit)="saveActivity()"><div class="form-grid"><label class="form-field span-two"><span>{{ t('crop.name') }}</span><select [(ngModel)]="activityDraft.cropName" name="activityCrop" required><option value="">{{ t('dialog.chooseCrop') }}</option>@for (crop of crops(); track crop.id) {<option [value]="crop.name">{{ crop.name }}</option>}</select></label><label class="form-field"><span>{{ t('dialog.activityType') }}</span><select [(ngModel)]="activityDraft.type" name="activityType"><option value="સિંચાઈ">{{ t('activity.irrigation') }}</option><option value="ખાતર આપ્યું">{{ t('activity.fertilizer') }}</option><option value="જંતુનાશકનો ઉપયોગ">{{ t('activity.pesticide') }}</option><option value="વાવણી">{{ t('activity.sowing') }}</option><option value="નીંદામણ">{{ t('activity.weeding') }}</option><option value="લણણી">{{ t('activity.harvesting') }}</option><option value="અન્ય">{{ t('activity.other') }}</option></select></label><label class="form-field"><span>{{ t('dialog.activityDate') }}</span><input [(ngModel)]="activityDraft.date" name="activityDate" type="date" required></label><label class="form-field span-two"><span>{{ t('dialog.description') }}</span><textarea [(ngModel)]="activityDraft.description" name="activityDescription" rows="3" required [placeholder]="t('dialog.activityPlaceholder')"></textarea></label></div><div class="modal-footer"><button class="button button-quiet" type="button" (click)="localDialog.set(null)">{{ t('common.cancel') }}</button><button class="button button-primary" type="submit" [disabled]="activityForm.invalid"><svg lucideCheck [size]="16"></svg> {{ t('dialog.saveActivity') }}</button></div></form>
+    </section></div>
+  }
+
+  @if (farmerDialogOpen()) {
+    <div class="modal-backdrop" (click)="farmerDialogOpen.set(false)"><section class="modal-card farmer-modal" role="dialog" aria-modal="true" aria-labelledby="farmer-dialog-title" (click)="$event.stopPropagation()">
+      <div class="modal-heading"><div><p class="eyebrow">{{ t('nav.accountType') }}</p><h2 id="farmer-dialog-title">{{ farmerEditId() ? t('dialog.farmerEdit') : t('dialog.farmerNew') }}</h2></div><button class="icon-button" type="button" [attr.aria-label]="t('common.close')" (click)="farmerDialogOpen.set(false)"><svg lucideX [size]="19"></svg></button></div>
+      <form #farmerForm="ngForm" (ngSubmit)="saveFarmer(farmerForm)"><div class="form-grid"><label class="form-field span-two"><span>{{ t('farmer.field.fullName') }}</span><input [(ngModel)]="farmerDraft.fullName" name="fullName" required maxlength="120" [placeholder]="t('auth.fullNamePlaceholder')"></label><label class="form-field"><span>{{ t('farmer.field.mobile') }}</span><input [(ngModel)]="farmerDraft.mobileNumber" name="mobileNumber" type="tel" required pattern="[6-9][0-9]{9}" maxlength="10" inputmode="numeric" placeholder="9876543210"></label><label class="form-field"><span>{{ t('farmer.field.email') }} <small>{{ t('common.optional') }}</small></span><input [(ngModel)]="farmerDraft.email" name="email" type="email" maxlength="254" placeholder="name@example.com"></label>@if (!farmerEditId()) {<label class="form-field span-two"><span>{{ t('farmer.field.password') }}</span><input [(ngModel)]="farmerDraft.password" name="password" type="password" required minlength="8" maxlength="72" [placeholder]="t('farmer.field.passwordHint')"></label>}<label class="form-field"><span>{{ t('farmer.field.village') }}</span><input [(ngModel)]="farmerDraft.village" name="village" required [placeholder]="t('farmer.field.village')"></label><label class="form-field"><span>{{ t('farmer.field.taluka') }}</span><input [(ngModel)]="farmerDraft.taluka" name="taluka" required [placeholder]="t('farmer.field.taluka')"></label><label class="form-field"><span>{{ t('farmer.field.district') }}</span><input [(ngModel)]="farmerDraft.district" name="district" required [placeholder]="t('farmer.field.district')"></label><label class="form-field"><span>{{ t('farmer.field.state') }}</span><input [(ngModel)]="farmerDraft.state" name="state" required [placeholder]="t('farmer.field.state')"></label></div>
+        @if (farmerError()) {<p class="form-error">{{ farmerError() }}</p>}
+        <div class="modal-footer"><button class="button button-quiet" type="button" (click)="farmerDialogOpen.set(false)">{{ t('common.cancel') }}</button><button class="button button-primary" type="submit" [disabled]="farmerForm.invalid || farmerSaving()">@if (farmerSaving()) {<span class="button-loader"></span>} @else {<svg lucideCheck [size]="16"></svg>}{{ farmerSaving() ? t('common.loading') : t('dialog.saveFarmer') }}</button></div>
+      </form>
+    </section></div>
+  }
+</div>
+}

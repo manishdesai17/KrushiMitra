@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;500;600;700&family=Noto+Serif+Gujarati:wght@500;600;700&display=swap');
+
+:root {
+	--font-body: 'DM Sans', 'Noto Sans Gujarati', sans-serif;
+	--font-display: 'Noto Serif Gujarati', Georgia, serif;
+	font-family: var(--font-body);
+	color: #364236;
+	background: #fdfdf9;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+body { min-width: 320px; min-height: 100vh; margin: 0; }
+button, input, select, textarea { font: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #7a9c7e; outline-offset: 2px; }
+::selection { color: #163d2b; background: #dce9d5; }

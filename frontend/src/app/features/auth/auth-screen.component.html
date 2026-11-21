@@ -1,0 +1,76 @@
+<main class="auth-page">
+  <section class="auth-intro">
+    <a class="auth-brand" href="#" (click)="$event.preventDefault()">
+      <span class="auth-brand-mark"><svg lucideSprout [size]="24"></svg></span>
+      <span><strong>{{ t('brand.name') }}</strong><small>{{ t('brand.tagline') }}</small></span>
+    </a>
+    <div class="intro-copy">
+      <p class="auth-kicker"><svg lucideLeaf [size]="16"></svg>{{ t('auth.kicker') }}</p>
+      <h1>{{ t('auth.heroTitle') }}</h1>
+      <p>{{ t('auth.heroText') }}</p>
+    </div>
+    <div class="intro-foot"><span></span>{{ t('auth.heroFoot') }}</div>
+  </section>
+
+  <section class="auth-form-side">
+    <form class="auth-form" #authForm="ngForm" (ngSubmit)="submit(authForm)" novalidate>
+      <div class="language-field">
+        <label for="auth-language">{{ t('auth.language') }}</label>
+        <select id="auth-language" [ngModel]="selectedLanguage()" (ngModelChange)="selectLanguage($event)" name="language">
+          <option value="gu">ગુજરાતી</option>
+          <option value="hi">हिंदी</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
+      <p class="auth-eyebrow">{{ mode() === 'login' ? t('auth.signInKicker') : t('auth.registerKicker') }}</p>
+      <h2>{{ mode() === 'login' ? t('auth.signInTitle') : t('auth.registerTitle') }}</h2>
+      <p class="auth-subtitle">{{ mode() === 'login' ? t('auth.signInSubtitle') : t('auth.registerSubtitle') }}</p>
+
+      @if (mode() === 'register') {
+        <label class="auth-field">
+          <span>{{ t('auth.fullName') }}</span>
+          <input [(ngModel)]="draft.fullName" name="fullName" required maxlength="120" autocomplete="name" [placeholder]="t('auth.fullNamePlaceholder')">
+        </label>
+      }
+
+      <label class="auth-field">
+        <span>{{ t('auth.mobile') }}</span>
+        <span class="input-shell"><svg lucidePhone [size]="17"></svg><input [(ngModel)]="draft.mobileNumber" name="mobileNumber" type="tel" required pattern="[6-9][0-9]{9}" maxlength="10" inputmode="numeric" autocomplete="tel" placeholder="9876543210"></span>
+      </label>
+
+      @if (mode() === 'register') {
+        <label class="auth-field">
+          <span>{{ t('auth.email') }} <small>{{ t('auth.optional') }}</small></span>
+          <input [(ngModel)]="draft.email" name="email" type="email" maxlength="254" autocomplete="email" placeholder="name@example.com">
+        </label>
+      }
+
+      <label class="auth-field">
+        <span>{{ t('auth.password') }}</span>
+        <span class="input-shell"><svg lucideLockKeyhole [size]="17"></svg><input [(ngModel)]="draft.password" name="password" type="password" required [minlength]="mode() === 'register' ? 8 : 1" maxlength="72" [autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'" [placeholder]="t('auth.passwordPlaceholder')"></span>
+      </label>
+
+      @if (mode() === 'register') {
+        <div class="location-fields">
+          <label class="auth-field"><span>{{ t('auth.village') }}</span><input [(ngModel)]="draft.village" name="village" required [placeholder]="t('auth.village')"></label>
+          <label class="auth-field"><span>{{ t('auth.taluka') }}</span><input [(ngModel)]="draft.taluka" name="taluka" required [placeholder]="t('auth.taluka')"></label>
+          <label class="auth-field"><span>{{ t('auth.district') }}</span><input [(ngModel)]="draft.district" name="district" required [placeholder]="t('auth.district')"></label>
+          <label class="auth-field"><span>{{ t('auth.state') }}</span><input [(ngModel)]="draft.state" name="state" required [placeholder]="t('auth.state')"></label>
+        </div>
+      }
+
+      @if (error()) { <p class="auth-error" role="alert">{{ error() }}</p> }
+
+      <button class="auth-submit" type="submit" [disabled]="authForm.invalid || loading()">
+        <span>{{ loading() ? t('auth.pleaseWait') : mode() === 'login' ? t('auth.signIn') : t('auth.createAccount') }}</span>
+        @if (!loading()) { <svg lucideArrowRight [size]="17"></svg> }
+      </button>
+
+      <p class="auth-switch">{{ mode() === 'login' ? t('auth.noAccount') : t('auth.haveAccount') }}
+        <button type="button" (click)="toggleMode()">{{ mode() === 'login' ? t('auth.register') : t('auth.signIn') }}</button>
+      </p>
+      <p class="auth-privacy"><svg lucideLeaf [size]="14"></svg>{{ t('auth.privacy') }}</p>
+    </form>
+  </section>
+</main>
