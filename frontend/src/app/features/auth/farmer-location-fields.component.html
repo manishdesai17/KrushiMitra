@@ -1,0 +1,71 @@
+<div class="location-fields">
+  <label class="auth-field">
+    <span>{{ t('auth.state') }}</span>
+    <select [value]="value().state" [disabled]="disabled()" (change)="changeState($any($event.target).value)">
+      @if (!states.includes(value().state)) {
+        <option [value]="value().state">{{ value().state }}</option>
+      }
+      @for (state of states; track state) {
+        <option [value]="state">{{ state }}</option>
+      }
+    </select>
+  </label>
+
+  @if (value().state === 'Gujarat') {
+    <label class="auth-field">
+      <span>{{ t('auth.district') }}</span>
+      <input [attr.list]="districtListId" [value]="value().district" [disabled]="disabled()"
+        (input)="changeDistrict($any($event.target).value)" required autocomplete="off"
+        [placeholder]="t('auth.chooseOrTypeLocation')">
+      <datalist [id]="districtListId">
+        @for (district of locationData.districts(); track district.name) {
+          <option [value]="district.name"></option>
+        }
+      </datalist>
+    </label>
+    <label class="auth-field">
+      <span>{{ t('auth.taluka') }}</span>
+      <input [attr.list]="talukaListId" [value]="value().taluka" [disabled]="disabled()"
+        (input)="changeTaluka($any($event.target).value)" required autocomplete="off"
+        [placeholder]="t('auth.chooseOrTypeLocation')">
+      <datalist [id]="talukaListId">
+        @for (taluka of talukas(); track taluka) {
+          <option [value]="taluka"></option>
+        }
+      </datalist>
+    </label>
+    <label class="auth-field">
+      <span>{{ t('auth.village') }}</span>
+      <input [attr.list]="villageListId" [value]="value().village" [disabled]="disabled()"
+        (input)="changeVillage($any($event.target).value)" required autocomplete="off"
+        [placeholder]="t('auth.chooseOrTypeLocation')">
+      <datalist [id]="villageListId">
+        @for (village of villages(); track village) {
+          <option [value]="village"></option>
+        }
+      </datalist>
+    </label>
+    @if (locationData.status() === 'error') {
+      <p class="location-data-note" role="status">{{ t('auth.locationDataUnavailable') }}</p>
+    } @else {
+      <p class="location-data-note">{{ t('auth.locationDataWarning') }}</p>
+    }
+  } @else {
+    <label class="auth-field">
+      <span>{{ t('auth.district') }}</span>
+      <input [value]="value().district" [disabled]="disabled()"
+        (input)="changeDistrict($any($event.target).value)" required autocomplete="address-level2">
+    </label>
+    <label class="auth-field">
+      <span>{{ t('auth.taluka') }}</span>
+      <input [value]="value().taluka" [disabled]="disabled()"
+        (input)="changeTaluka($any($event.target).value)" required>
+    </label>
+    <label class="auth-field">
+      <span>{{ t('auth.village') }}</span>
+      <input [value]="value().village" [disabled]="disabled()"
+        (input)="changeVillage($any($event.target).value)" required>
+    </label>
+    <p class="location-data-note">{{ t('auth.locationManualNote') }}</p>
+  }
+</div>

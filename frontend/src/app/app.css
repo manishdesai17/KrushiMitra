@@ -5,6 +5,20 @@
 
 .app-shell { display: flex; min-height: 100vh; }
 .app-starting { min-height: 100vh; display: grid; place-items: center; color: #647064; font-size: 13px; }
+.language-choice-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f7f8f2; }
+.language-choice-card { width: min(100%, 440px); padding: 32px; background: #fff; border: 1px solid #e6eadf; border-radius: 12px; box-shadow: 0 16px 48px rgba(34, 55, 39, .09); }
+.language-choice-card > .brand-mark { display: grid; width: 44px; height: 44px; place-items: center; margin-bottom: 20px; color: #176345; background: #eef4e8; border-radius: 12px 12px 12px 4px; }
+.language-choice-card > .eyebrow { margin: 0 0 8px; color: #73876b; font-size: 11px; font-weight: 750; letter-spacing: 1px; }
+.language-choice-card h1 { margin: 0 0 10px; color: #2b4131; font-family: var(--font-display); font-size: 26px; }
+.language-choice-card > p:not(.eyebrow) { margin: 0; color: #758071; font-size: 13px; line-height: 1.65; }
+.language-choice-options { display: grid; gap: 10px; margin-top: 24px; }
+.language-choice-options button { min-height: 48px; padding: 0 14px; color: #254533; background: #fff; border: 1px solid #dfe6da; border-radius: 6px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 650; text-align: left; }
+.language-choice-options button:hover:not(:disabled) { background: #f1f6ed; border-color: #9db59a; }
+.language-choice-options button:disabled { opacity: .6; cursor: wait; }
+.registration-ai-notice { grid-column: 1 / -1; margin: 4px 0 0; padding: 11px 12px; color: #665b3c; background: #f7f5e9; border: 1px solid #ece7cf; border-radius: 5px; }
+.registration-ai-notice > p { margin: 0 0 9px; font-size: 11px; line-height: 1.55; }
+.consent-check { display: flex; align-items: flex-start; gap: 8px; color: #4b5849; font-size: 11px; line-height: 1.5; cursor: pointer; }
+.consent-check input { flex: 0 0 auto; width: 15px; height: 15px; margin: 1px 0 0; accent-color: #176345; }
 .sidebar { width: 252px; flex: 0 0 252px; min-height: 100vh; display: flex; flex-direction: column; padding: 27px 16px 18px; background: #f8f8f2; border-right: 1px solid #e8e9de; }
 .brand { display: flex; align-items: center; gap: 11px; padding: 0 10px 35px; color: inherit; text-decoration: none; }
 .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; color: white; background: #1c6849; border-radius: 12px 12px 12px 4px; }

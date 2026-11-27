@@ -16,7 +16,7 @@ describe('App', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('should provide the app component for testing', () => {
+  it('asks for a language preference before first use', async () => {
     localStorage.removeItem('km-access-token');
     localStorage.removeItem('km-language');
     const fixture = TestBed.createComponent(App);
@@ -28,7 +28,10 @@ describe('App', () => {
       'common.loading': 'લોડ થઈ રહ્યું છે...'
     }));
 
-    expect(fixture.componentInstance).toBeTruthy();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.language-choice-screen')).not.toBeNull();
     http.verify();
   });
 });

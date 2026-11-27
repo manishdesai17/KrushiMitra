@@ -124,3 +124,9 @@ Backend tests use an isolated H2 database. The application itself remains config
 4. Replace the mock assistant with an optional Spring AI provider; add RAG only after a trusted knowledge source exists.
 5. Add weather, market data, and disease-image analysis only after authentic providers and expert-reviewed guidance are selected.
 6. Add admin permissions and prepare an Ionic/Capacitor mobile client.
+
+## Location suggestions
+
+The Gujarat district, taluka, town, and village suggestions are derived from DataMeet's Indian Village Boundaries dataset and its Census 2011 source. Administrative boundaries may have changed since then, so the registration form allows missing or newer place names to be entered manually. Location suggestions for states outside Gujarat are not bundled.
+
+The location database is shared under the Open Database License (ODbL). See [the included ODbL text](frontend/public/assets/data/ODbL.txt) and the [DataMeet source project](https://github.com/datameet/indian_village_boundaries).

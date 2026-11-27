@@ -52,11 +52,13 @@
       </label>
 
       @if (mode() === 'register') {
-        <div class="location-fields">
-          <label class="auth-field"><span>{{ t('auth.village') }}</span><input [(ngModel)]="draft.village" name="village" required [placeholder]="t('auth.village')"></label>
-          <label class="auth-field"><span>{{ t('auth.taluka') }}</span><input [(ngModel)]="draft.taluka" name="taluka" required [placeholder]="t('auth.taluka')"></label>
-          <label class="auth-field"><span>{{ t('auth.district') }}</span><input [(ngModel)]="draft.district" name="district" required [placeholder]="t('auth.district')"></label>
-          <label class="auth-field"><span>{{ t('auth.state') }}</span><input [(ngModel)]="draft.state" name="state" required [placeholder]="t('auth.state')"></label>
+        <app-farmer-location-fields [ngModel]="locationDraft()" (ngModelChange)="locationDraft.set($event)" name="location" listIdPrefix="auth-location" />
+        <div class="registration-ai-notice">
+          <p>{{ t('auth.aiNotice') }}</p>
+          <label class="consent-check">
+            <input [(ngModel)]="aiNoticeAccepted" name="aiNoticeAccepted" type="checkbox" required>
+            <span>{{ t('auth.aiConsent') }}</span>
+          </label>
         </div>
       }
 

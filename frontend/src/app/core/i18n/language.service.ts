@@ -34,6 +34,14 @@ export class LanguageService {
     await this.loadCatalog(language);
   }
 
+  hasSavedPreference(): boolean {
+    try {
+      return isLanguageCode(localStorage.getItem('km-language'));
+    } catch {
+      return false;
+    }
+  }
+
   translate(key: string): string {
     return this.catalog()[key] ?? key;
   }

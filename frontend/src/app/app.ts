@@ -38,6 +38,7 @@ import {
 import { AuthService } from './core/auth/auth.service';
 import { LanguageCode, LanguageService } from './core/i18n/language.service';
 import { AuthScreenComponent } from './features/auth/auth-screen.component';
+import { FarmerLocation, FarmerLocationFieldsComponent } from './features/auth/farmer-location-fields.component';
 import { AiConversation, AssistantService } from './core/assistant/assistant.service';
 import { SpeechService } from './core/assistant/speech.service';
 import { AppConfigService } from './core/config/app-config.service';
@@ -113,6 +114,7 @@ function readStorage<T>(key: string, fallback: T): T {
   imports: [
     FormsModule,
     AuthScreenComponent,
+    FarmerLocationFieldsComponent,
     LucideActivity,
     LucideArrowUpRight,
     LucideBell,
@@ -158,11 +160,19 @@ export class App implements OnInit {
   private readonly speech = inject(SpeechService);
 
   protected readonly isReady = signal(false);
-  protected readonly activePage = signal<Page>('assistant');
+  protected readonly showLanguageChoice = signal(false);
+  protected readonly languageChoiceSaving = signal(false);
+  protected readonly activePage = signal<Page>('dashboard');
   protected readonly pageTitle = computed(() => this.language.translate(`page.${this.activePage()}`));
   protected readonly today = computed(() => new Intl.DateTimeFormat(this.language.locale(), {
     weekday: 'long', month: 'long', day: 'numeric'
   }).format(new Date()));
+  protected readonly activeCropCount = computed(() =>
+    this.crops().filter(crop => crop.status !== 'લણણી પૂર્ણ').length
+  );
+  protected readonly todayActivityCount = computed(() => {
+    return this.activities().filter(activity => activity.date === this.localDateString()).length;
+  });
 
   protected readonly farms = signal<FarmRecord[]>(readStorage('km-farms', []));
   protected readonly crops = signal<CropRecord[]>(readStorage('km-crops', []));
@@ -174,6 +184,7 @@ export class App implements OnInit {
   protected readonly farmerError = signal('');
   protected readonly farmerMessage = signal('');
   protected readonly farmerDialogOpen = signal(false);
+  protected farmerAiNoticeAccepted = false;
   protected readonly farmerEditId = signal<number | null>(null);
   protected readonly localDialog = signal<'farm' | 'crop' | 'activity' | null>(null);
   protected readonly localEditId = signal<number | null>(null);
@@ -193,6 +204,7 @@ export class App implements OnInit {
   protected cropDraft = this.emptyCrop();
   protected activityDraft = this.emptyActivity();
   protected farmerDraft = this.emptyFarmer();
+  protected readonly farmerLocationDraft = signal<FarmerLocation>(this.emptyLocation());
 
   protected readonly filteredFarms = computed(() => {
     const search = this.searchText().trim().toLocaleLowerCase();
@@ -210,9 +222,19 @@ export class App implements OnInit {
 
   protected onAuthenticated(): void {
     this.isReady.set(true);
-    this.activePage.set('assistant');
+    this.activePage.set('dashboard');
     if (this.messages().length === 0) this.clearChat();
     this.loadConversations();
+  }
+
+  protected async choosePreferredLanguage(language: LanguageCode): Promise<void> {
+    if (this.languageChoiceSaving()) return;
+    this.languageChoiceSaving.set(true);
+    await this.language.setLanguage(language);
+    this.isReady.set(false);
+    this.showLanguageChoice.set(false);
+    this.restoreSession();
+    this.languageChoiceSaving.set(false);
   }
 
   protected changeLanguage(language: LanguageCode): void {
@@ -330,6 +352,13 @@ export class App implements OnInit {
 
   protected openFarmerDialog(farmer?: FarmerRecord): void {
     this.farmerEditId.set(farmer?.farmerId ?? null);
+    this.farmerAiNoticeAccepted = false;
+    this.farmerLocationDraft.set(farmer ? {
+      state: farmer.state,
+      district: farmer.district,
+      taluka: farmer.taluka,
+      village: farmer.village
+    } : this.emptyLocation());
     this.farmerDraft = farmer ? {
       fullName: farmer.fullName,
       mobileNumber: farmer.mobileNumber,
@@ -350,9 +379,10 @@ export class App implements OnInit {
     this.farmerError.set('');
     const id = this.farmerEditId();
     const { password, ...profile } = this.farmerDraft;
+    const requestBody = { ...profile, ...this.farmerLocationDraft() };
     const request = id
-      ? this.http.put<FarmerRecord>(`${this.apiUrl}/${id}`, profile)
-      : this.http.post<FarmerRecord>(this.apiUrl, this.farmerDraft);
+      ? this.http.put<FarmerRecord>(`${this.apiUrl}/${id}`, requestBody)
+      : this.http.post<FarmerRecord>(this.apiUrl, { ...requestBody, password });
 
     request.subscribe({
       next: () => {
@@ -574,11 +604,24 @@ export class App implements OnInit {
 
   private async initializeApplication(): Promise<void> {
     await this.language.initialize();
+    if (!this.language.hasSavedPreference()) {
+      this.showLanguageChoice.set(true);
+      this.isReady.set(true);
+      return;
+    }
+    this.restoreSession();
+  }
+
+  private restoreSession(): void {
     this.auth.restoreSession().subscribe(() => {
       if (this.messages().length === 0) this.clearChat();
       if (this.auth.isAuthenticated()) this.loadConversations();
       this.isReady.set(true);
     });
+  }
+
+  private emptyLocation(): FarmerLocation {
+    return { state: 'Gujarat', district: '', taluka: '', village: '' };
   }
 
   private emptyFarm(): Omit<FarmRecord, 'id'> {
@@ -590,13 +633,17 @@ export class App implements OnInit {
   }
 
   private emptyActivity(): Omit<ActivityRecord, 'id'> {
-    return { cropName: '', type: 'સિંચાઈ', date: new Date().toISOString().slice(0, 10), description: '' };
+    return { cropName: '', type: 'સિંચાઈ', date: this.localDateString(), description: '' };
+  }
+
+  private localDateString(date = new Date()): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 
   private emptyFarmer(): FarmerDraft {
     return {
       fullName: '', mobileNumber: '', email: '', password: '',
-      village: '', taluka: '', district: '', state: 'ગુજરાત'
+      village: '', taluka: '', district: '', state: 'Gujarat'
     };
   }
 }

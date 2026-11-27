@@ -1,5 +1,19 @@
 @if (!isReady()) {
   <div class="app-starting" role="status">{{ t('common.loading') }}</div>
+} @else if (showLanguageChoice()) {
+  <main class="language-choice-screen" [attr.lang]="language.language()">
+    <section class="language-choice-card" aria-labelledby="language-choice-title">
+      <span class="brand-mark"><svg lucideSprout [size]="22"></svg></span>
+      <p class="eyebrow">{{ t('brand.name') }}</p>
+      <h1 id="language-choice-title">{{ t('language.firstTitle') }}</h1>
+      <p>{{ t('language.firstDescription') }}</p>
+      <div class="language-choice-options" [attr.aria-label]="t('auth.language')">
+        <button type="button" [disabled]="languageChoiceSaving()" (click)="choosePreferredLanguage('gu')">ગુજરાતી</button>
+        <button type="button" [disabled]="languageChoiceSaving()" (click)="choosePreferredLanguage('hi')">हिंदी</button>
+        <button type="button" [disabled]="languageChoiceSaving()" (click)="choosePreferredLanguage('en')">English</button>
+      </div>
+    </section>
+  </main>
 } @else if (!auth.isAuthenticated()) {
   <app-auth-screen (authenticated)="onAuthenticated()" />
 } @else {
@@ -90,11 +104,11 @@
           </article>
           <article class="summary-item">
             <div class="summary-icon icon-orange"><svg lucideWheat [size]="19"></svg></div>
-            <div class="summary-label">{{ t('dashboard.activeCrops') }}</div><strong>{{ crops().length }}</strong><small>{{ t('dashboard.cropsCount') }}</small>
+            <div class="summary-label">{{ t('dashboard.activeCrops') }}</div><strong>{{ activeCropCount() }}</strong><small>{{ t('dashboard.cropsCount') }}</small>
           </article>
           <article class="summary-item">
             <div class="summary-icon icon-blue"><svg lucideActivity [size]="19"></svg></div>
-            <div class="summary-label">{{ t('dashboard.todayActivities') }}</div><strong>{{ activities().length }}</strong><small>{{ t('dashboard.activitiesCount') }}</small>
+            <div class="summary-label">{{ t('dashboard.todayActivities') }}</div><strong>{{ todayActivityCount() }}</strong><small>{{ t('dashboard.activitiesCount') }}</small>
           </article>
           <article class="summary-item summary-weather">
             <div class="summary-icon icon-sand"><svg lucideCloudOff [size]="19"></svg></div>
@@ -219,7 +233,8 @@
   @if (farmerDialogOpen()) {
     <div class="modal-backdrop" (click)="farmerDialogOpen.set(false)"><section class="modal-card farmer-modal" role="dialog" aria-modal="true" aria-labelledby="farmer-dialog-title" (click)="$event.stopPropagation()">
       <div class="modal-heading"><div><p class="eyebrow">{{ t('nav.accountType') }}</p><h2 id="farmer-dialog-title">{{ farmerEditId() ? t('dialog.farmerEdit') : t('dialog.farmerNew') }}</h2></div><button class="icon-button" type="button" [attr.aria-label]="t('common.close')" (click)="farmerDialogOpen.set(false)"><svg lucideX [size]="19"></svg></button></div>
-      <form #farmerForm="ngForm" (ngSubmit)="saveFarmer(farmerForm)"><div class="form-grid"><label class="form-field span-two"><span>{{ t('farmer.field.fullName') }}</span><input [(ngModel)]="farmerDraft.fullName" name="fullName" required maxlength="120" [placeholder]="t('auth.fullNamePlaceholder')"></label><label class="form-field"><span>{{ t('farmer.field.mobile') }}</span><input [(ngModel)]="farmerDraft.mobileNumber" name="mobileNumber" type="tel" required pattern="[6-9][0-9]{9}" maxlength="10" inputmode="numeric" placeholder="9876543210"></label><label class="form-field"><span>{{ t('farmer.field.email') }} <small>{{ t('common.optional') }}</small></span><input [(ngModel)]="farmerDraft.email" name="email" type="email" maxlength="254" placeholder="name@example.com"></label>@if (!farmerEditId()) {<label class="form-field span-two"><span>{{ t('farmer.field.password') }}</span><input [(ngModel)]="farmerDraft.password" name="password" type="password" required minlength="8" maxlength="72" [placeholder]="t('farmer.field.passwordHint')"></label>}<label class="form-field"><span>{{ t('farmer.field.village') }}</span><input [(ngModel)]="farmerDraft.village" name="village" required [placeholder]="t('farmer.field.village')"></label><label class="form-field"><span>{{ t('farmer.field.taluka') }}</span><input [(ngModel)]="farmerDraft.taluka" name="taluka" required [placeholder]="t('farmer.field.taluka')"></label><label class="form-field"><span>{{ t('farmer.field.district') }}</span><input [(ngModel)]="farmerDraft.district" name="district" required [placeholder]="t('farmer.field.district')"></label><label class="form-field"><span>{{ t('farmer.field.state') }}</span><input [(ngModel)]="farmerDraft.state" name="state" required [placeholder]="t('farmer.field.state')"></label></div>
+      <form #farmerForm="ngForm" (ngSubmit)="saveFarmer(farmerForm)"><div class="form-grid"><label class="form-field span-two"><span>{{ t('farmer.field.fullName') }}</span><input [(ngModel)]="farmerDraft.fullName" name="fullName" required maxlength="120" [placeholder]="t('auth.fullNamePlaceholder')"></label><label class="form-field"><span>{{ t('farmer.field.mobile') }}</span><input [(ngModel)]="farmerDraft.mobileNumber" name="mobileNumber" type="tel" required pattern="[6-9][0-9]{9}" maxlength="10" inputmode="numeric" placeholder="9876543210"></label><label class="form-field"><span>{{ t('farmer.field.email') }} <small>{{ t('common.optional') }}</small></span><input [(ngModel)]="farmerDraft.email" name="email" type="email" maxlength="254" placeholder="name@example.com"></label>@if (!farmerEditId()) {<label class="form-field span-two"><span>{{ t('farmer.field.password') }}</span><input [(ngModel)]="farmerDraft.password" name="password" type="password" required minlength="8" maxlength="72" [placeholder]="t('farmer.field.passwordHint')"></label>}<app-farmer-location-fields class="span-two" [ngModel]="farmerLocationDraft()" (ngModelChange)="farmerLocationDraft.set($event)" name="farmerLocation" listIdPrefix="dashboard-location"></app-farmer-location-fields></div>
+        @if (!farmerEditId()) {<div class="registration-ai-notice"><p>{{ t('auth.aiNotice') }}</p><label class="consent-check"><input [(ngModel)]="farmerAiNoticeAccepted" name="aiNoticeAccepted" type="checkbox" required><span>{{ t('auth.aiConsent') }}</span></label></div>}
         @if (farmerError()) {<p class="form-error">{{ farmerError() }}</p>}
         <div class="modal-footer"><button class="button button-quiet" type="button" (click)="farmerDialogOpen.set(false)">{{ t('common.cancel') }}</button><button class="button button-primary" type="submit" [disabled]="farmerForm.invalid || farmerSaving()">@if (farmerSaving()) {<span class="button-loader"></span>} @else {<svg lucideCheck [size]="16"></svg>}{{ farmerSaving() ? t('common.loading') : t('dialog.saveFarmer') }}</button></div>
       </form>

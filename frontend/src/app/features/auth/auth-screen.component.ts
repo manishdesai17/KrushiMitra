@@ -3,10 +3,19 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { LucideArrowRight, LucideLeaf, LucideLockKeyhole, LucidePhone, LucideSprout } from '@lucide/angular';
 import { AuthService } from '../../core/auth/auth.service';
 import { LanguageCode, LanguageService } from '../../core/i18n/language.service';
+import { FarmerLocation, FarmerLocationFieldsComponent } from './farmer-location-fields.component';
 
 @Component({
   selector: 'app-auth-screen',
-  imports: [FormsModule, LucideArrowRight, LucideLeaf, LucideLockKeyhole, LucidePhone, LucideSprout],
+  imports: [
+    FormsModule,
+    FarmerLocationFieldsComponent,
+    LucideArrowRight,
+    LucideLeaf,
+    LucideLockKeyhole,
+    LucidePhone,
+    LucideSprout
+  ],
   templateUrl: './auth-screen.component.html',
   styleUrl: './auth-screen.component.css'
 })
@@ -19,16 +28,19 @@ export class AuthScreenComponent {
   protected readonly error = signal('');
   protected readonly languageTouched = signal(false);
   protected readonly selectedLanguage = signal<LanguageCode>(this.language.language());
+  protected readonly locationDraft = signal<FarmerLocation>({
+    state: 'Gujarat',
+    district: '',
+    taluka: '',
+    village: ''
+  });
+  protected aiNoticeAccepted = false;
 
   protected draft = {
     fullName: '',
     mobileNumber: '',
     email: '',
-    password: '',
-    village: '',
-    taluka: '',
-    district: '',
-    state: 'Gujarat'
+    password: ''
   };
 
   protected t(key: string): string {
@@ -44,6 +56,7 @@ export class AuthScreenComponent {
   protected toggleMode(): void {
     this.mode.update(mode => mode === 'login' ? 'register' : 'login');
     this.error.set('');
+    this.aiNoticeAccepted = false;
   }
 
   protected submit(form: NgForm): void {
@@ -53,7 +66,11 @@ export class AuthScreenComponent {
     const request = this.mode() === 'login'
       ? this.auth.login(this.draft.mobileNumber, this.draft.password,
           this.languageTouched() ? this.selectedLanguage() : undefined)
-      : this.auth.register({ ...this.draft, language: this.selectedLanguage() });
+      : this.auth.register({
+          ...this.draft,
+          ...this.locationDraft(),
+          language: this.selectedLanguage()
+        });
 
     request.subscribe({
       next: () => {

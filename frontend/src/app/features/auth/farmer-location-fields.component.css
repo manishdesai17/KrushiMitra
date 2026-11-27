@@ -1,0 +1,8 @@
+:host { display: block; }
+.location-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.location-fields .auth-field > input,
+.location-fields .auth-field > select { width: 100%; min-width: 0; height: 42px; padding: 0 10px; color: #405042; background: #fff; border: 1px solid #e3e7df; border-radius: 5px; font: inherit; font-size: 12px; }
+.location-fields .auth-field > input:focus,
+.location-fields .auth-field > select:focus { border-color: #86a389; outline: 0; box-shadow: 0 0 0 3px #edf3e9; }
+.location-data-note { grid-column: 1 / -1; margin: -4px 0 13px; color: #758071; font-size: 10px; line-height: 1.5; }
+@media (max-width: 480px) { .location-fields { grid-template-columns: minmax(0, 1fr); } .location-data-note { margin-bottom: 12px; } }
