@@ -10,6 +10,6 @@
       ? 'http://localhost:8080'
       : isLanAddress
         ? 'http://' + hostname + ':8080'
-        : 'https://dep-d04r7hn0lbc73dahkupg.onrender.com'
+        : 'https://krushimitra-2eh0.onrender.com'
   };
 })();
