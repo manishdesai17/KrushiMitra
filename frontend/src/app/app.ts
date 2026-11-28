@@ -33,6 +33,7 @@ import {
   LucideTrash,
   LucideUsers,
   LucideWheat,
+  LucideExternalLink,
   LucideX
 } from '@lucide/angular';
 import { AuthService } from './core/auth/auth.service';
@@ -42,8 +43,11 @@ import { FarmerLocation, FarmerLocationFieldsComponent } from './features/auth/f
 import { AiConversation, AssistantService } from './core/assistant/assistant.service';
 import { SpeechService } from './core/assistant/speech.service';
 import { AppConfigService } from './core/config/app-config.service';
+import { CurrentWeather, WeatherService } from './core/weather/weather.service';
+import { FarmerDataStorageService } from './core/storage/farmer-data-storage.service';
 
-type Page = 'dashboard' | 'farms' | 'crops' | 'activities' | 'assistant' | 'farmers';
+type Page = 'dashboard' | 'farms' | 'crops' | 'activities' | 'assistant' | 'farmers'
+  | 'weather' | 'market' | 'crop-health' | 'reports' | 'profile';
 type AreaUnit = 'એકર' | 'હેક્ટર';
 
 interface FarmRecord {
@@ -100,15 +104,6 @@ interface ChatMessage {
   text: string;
 }
 
-function readStorage<T>(key: string, fallback: T): T {
-  try {
-    const value = localStorage.getItem(key);
-    return value ? JSON.parse(value) as T : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 @Component({
   selector: 'app-root',
   imports: [
@@ -146,6 +141,7 @@ function readStorage<T>(key: string, fallback: T): T {
     LucideTrash,
     LucideUsers,
     LucideWheat,
+    LucideExternalLink,
     LucideX
   ],
   templateUrl: './app.html',
@@ -158,6 +154,8 @@ export class App implements OnInit {
   private readonly apiUrl = inject(AppConfigService).farmersUrl;
   private readonly assistant = inject(AssistantService);
   private readonly speech = inject(SpeechService);
+  private readonly weatherService = inject(WeatherService);
+  private readonly farmerStorage = inject(FarmerDataStorageService);
 
   protected readonly isReady = signal(false);
   protected readonly showLanguageChoice = signal(false);
@@ -174,10 +172,10 @@ export class App implements OnInit {
     return this.activities().filter(activity => activity.date === this.localDateString()).length;
   });
 
-  protected readonly farms = signal<FarmRecord[]>(readStorage('km-farms', []));
-  protected readonly crops = signal<CropRecord[]>(readStorage('km-crops', []));
-  protected readonly activities = signal<ActivityRecord[]>(readStorage('km-activities', []));
-  protected readonly messages = signal<ChatMessage[]>(readStorage('km-chat', []));
+  protected readonly farms = signal<FarmRecord[]>([]);
+  protected readonly crops = signal<CropRecord[]>([]);
+  protected readonly activities = signal<ActivityRecord[]>([]);
+  protected readonly messages = signal<ChatMessage[]>([]);
   protected readonly farmers = signal<FarmerRecord[]>([]);
   protected readonly farmerLoading = signal(false);
   protected readonly farmerSaving = signal(false);
@@ -198,7 +196,17 @@ export class App implements OnInit {
   protected readonly assistantLoading = signal(false);
   protected readonly speaking = signal(false);
   protected readonly searchText = signal('');
+  protected readonly cropSearchText = signal('');
+  protected readonly cropStatusFilter = signal('');
+  protected readonly activitySearchText = signal('');
+  protected readonly activityDateFilter = signal<'all' | '30' | '90'>('all');
+  protected readonly reportPeriod = signal<'30' | '90'>('30');
   protected readonly mobileNavOpen = signal(false);
+  protected readonly weather = signal<CurrentWeather | null>(null);
+  protected readonly weatherLoading = signal(false);
+  protected readonly weatherError = signal('');
+  protected readonly healthCrop = signal('');
+  protected readonly healthSymptoms = signal('');
 
   protected farmDraft = this.emptyFarm();
   protected cropDraft = this.emptyCrop();
@@ -211,6 +219,30 @@ export class App implements OnInit {
     if (!search) return this.farms();
     return this.farms().filter(farm => `${farm.name} ${farm.village}`.toLocaleLowerCase().includes(search));
   });
+  protected readonly filteredCrops = computed(() => {
+    const search = this.cropSearchText().trim().toLocaleLowerCase();
+    const status = this.cropStatusFilter();
+    return this.crops().filter(crop =>
+      (!status || crop.status === status)
+      && (!search || `${crop.name} ${crop.variety} ${crop.farmName}`.toLocaleLowerCase().includes(search))
+    );
+  });
+  protected readonly filteredActivities = computed(() => {
+    const search = this.activitySearchText().trim().toLocaleLowerCase();
+    const dateFilter = this.activityDateFilter();
+    const cutoff = dateFilter === 'all' ? null : new Date();
+    if (cutoff) cutoff.setDate(cutoff.getDate() - Number(dateFilter));
+    return this.activities().filter(activity => {
+      const activityDate = new Date(`${activity.date}T00:00:00`);
+      return (!search || `${activity.cropName} ${activity.type} ${activity.description}`.toLocaleLowerCase().includes(search))
+        && (!cutoff || activityDate >= cutoff);
+    });
+  });
+  protected readonly reportActivityCount = computed(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - Number(this.reportPeriod()));
+    return this.activities().filter(activity => new Date(`${activity.date}T00:00:00`) >= cutoff).length;
+  });
 
   ngOnInit(): void {
     void this.initializeApplication();
@@ -221,10 +253,13 @@ export class App implements OnInit {
   }
 
   protected onAuthenticated(): void {
+    this.loadFarmerLocalData();
     this.isReady.set(true);
     this.activePage.set('dashboard');
     if (this.messages().length === 0) this.clearChat();
-    this.loadConversations();
+    this.auth.restoreSession().subscribe(() => {
+      if (this.auth.isAuthenticated()) this.loadConversations();
+    });
   }
 
   protected async choosePreferredLanguage(language: LanguageCode): Promise<void> {
@@ -247,7 +282,11 @@ export class App implements OnInit {
 
   protected logout(): void {
     this.auth.logout();
-    this.activePage.set('assistant');
+    this.farms.set([]);
+    this.crops.set([]);
+    this.activities.set([]);
+    this.messages.set([]);
+    this.activePage.set('dashboard');
   }
 
   protected displayUnit(unit: AreaUnit): string {
@@ -299,6 +338,60 @@ export class App implements OnInit {
     if (page === 'farmers') this.loadFarmers();
   }
 
+  protected weatherCondition(): string {
+    const code = this.weather()?.weatherCode;
+    if (code === undefined) return '';
+    if (code === 0) return this.t('weather.clear');
+    if (code === 1 || code === 2) return this.t('weather.partlyCloudy');
+    if (code === 3) return this.t('weather.cloudy');
+    if (code === 45 || code === 48) return this.t('weather.fog');
+    if (code >= 51 && code <= 57) return this.t('weather.drizzle');
+    if (code >= 61 && code <= 67) return this.t('weather.rain');
+    if (code >= 71 && code <= 77 || code >= 85 && code <= 86) return this.t('weather.snow');
+    if (code >= 80 && code <= 82) return this.t('weather.showers');
+    if (code >= 95) return this.t('weather.storm');
+    return this.t('weather.partlyCloudy');
+  }
+
+  protected requestWeather(): void {
+    if (!navigator.geolocation) {
+      this.weatherError.set(this.t('weather.locationUnavailable'));
+      return;
+    }
+    this.weatherLoading.set(true);
+    this.weatherError.set('');
+    navigator.geolocation.getCurrentPosition(
+      position => this.weatherService.current(position.coords.latitude, position.coords.longitude)
+        .subscribe({
+          next: current => {
+            this.weather.set(current);
+            this.weatherLoading.set(false);
+          },
+          error: () => {
+            this.weatherLoading.set(false);
+            this.weatherError.set(this.t('weather.fetchFailed'));
+          }
+        }),
+      error => {
+        this.weatherLoading.set(false);
+        this.weatherError.set(error.code === error.PERMISSION_DENIED
+          ? this.t('weather.locationDenied')
+          : error.code === error.TIMEOUT
+            ? this.t('weather.locationTimeout')
+            : this.t('weather.locationUnavailable'));
+      },
+      { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 }
+    );
+  }
+
+  protected openCropHealthAssistant(form: NgForm): void {
+    if (form.invalid) return;
+    this.chatDraft.set(
+      `${this.t('cropHealth.assistantRequest')} ${this.t('cropHealth.crop')}: ${this.healthCrop()}. ${this.t('cropHealth.symptoms')}: ${this.healthSymptoms()}`
+    );
+    this.setPage('assistant');
+  }
+
   protected openFarmDialog(farm?: FarmRecord): void {
     this.localEditId.set(farm?.id ?? null);
     this.farmDraft = farm ? { ...farm } : this.emptyFarm();
@@ -337,17 +430,17 @@ export class App implements OnInit {
 
   protected deleteFarm(id: number): void {
     this.farms.update(items => items.filter(item => item.id !== id));
-    localStorage.setItem('km-farms', JSON.stringify(this.farms()));
+    this.farmerStorage.write('km-farms', this.farms());
   }
 
   protected deleteCrop(id: number): void {
     this.crops.update(items => items.filter(item => item.id !== id));
-    localStorage.setItem('km-crops', JSON.stringify(this.crops()));
+    this.farmerStorage.write('km-crops', this.crops());
   }
 
   protected deleteActivity(id: number): void {
     this.activities.update(items => items.filter(item => item.id !== id));
-    localStorage.setItem('km-activities', JSON.stringify(this.activities()));
+    this.farmerStorage.write('km-activities', this.activities());
   }
 
   protected openFarmerDialog(farmer?: FarmerRecord): void {
@@ -431,7 +524,7 @@ export class App implements OnInit {
     const userMessage: ChatMessage = { role: 'farmer', text };
     const nextMessages = [...this.messages(), userMessage];
     this.messages.set(nextMessages);
-    localStorage.setItem('km-chat', JSON.stringify(nextMessages));
+    this.farmerStorage.write('km-chat', nextMessages);
     this.chatDraft.set('');
     this.assistantLoading.set(true);
 
@@ -441,7 +534,7 @@ export class App implements OnInit {
           const reply: ChatMessage = { role: 'assistant', text: response.content };
           const updated = [...this.messages(), reply];
           this.messages.set(updated);
-          localStorage.setItem('km-chat', JSON.stringify(updated));
+          this.farmerStorage.write('km-chat', updated);
           this.assistantLoading.set(false);
           this.removeSelectedImage();
           this.loadConversations();
@@ -450,7 +543,7 @@ export class App implements OnInit {
           const reply: ChatMessage = { role: 'assistant', text: this.t('assistant.safeFollowup') };
           const updated = [...this.messages(), reply];
           this.messages.set(updated);
-          localStorage.setItem('km-chat', JSON.stringify(updated));
+          this.farmerStorage.write('km-chat', updated);
           this.assistantLoading.set(false);
         }
       });
@@ -470,7 +563,7 @@ export class App implements OnInit {
         const reply: ChatMessage = { role: 'assistant', text: this.t('assistant.safeFollowup') };
         const updated = [...this.messages(), reply];
         this.messages.set(updated);
-        localStorage.setItem('km-chat', JSON.stringify(updated));
+        this.farmerStorage.write('km-chat', updated);
         this.assistantLoading.set(false);
       }
     });
@@ -580,7 +673,7 @@ export class App implements OnInit {
       text: this.t('assistant.welcome')
     }];
     this.messages.set(welcome);
-    localStorage.setItem('km-chat', JSON.stringify(welcome));
+    this.farmerStorage.write('km-chat', welcome);
   }
 
   protected usePrompt(prompt: string): void {
@@ -599,7 +692,7 @@ export class App implements OnInit {
       ? current.map(item => item.id === id ? record : item)
       : [record, ...current];
     store.set(updated);
-    localStorage.setItem(key, JSON.stringify(updated));
+    this.farmerStorage.write(key, updated);
   }
 
   private async initializeApplication(): Promise<void> {
@@ -614,10 +707,25 @@ export class App implements OnInit {
 
   private restoreSession(): void {
     this.auth.restoreSession().subscribe(() => {
-      if (this.messages().length === 0) this.clearChat();
-      if (this.auth.isAuthenticated()) this.loadConversations();
+      if (this.auth.isAuthenticated()) {
+        this.loadFarmerLocalData();
+        if (this.messages().length === 0) this.clearChat();
+        this.loadConversations();
+      } else {
+        this.farms.set([]);
+        this.crops.set([]);
+        this.activities.set([]);
+        this.messages.set([]);
+      }
       this.isReady.set(true);
     });
+  }
+
+  private loadFarmerLocalData(): void {
+    this.farms.set(this.farmerStorage.read('km-farms', []));
+    this.crops.set(this.farmerStorage.read('km-crops', []));
+    this.activities.set(this.farmerStorage.read('km-activities', []));
+    this.messages.set(this.farmerStorage.read('km-chat', []));
   }
 
   private emptyLocation(): FarmerLocation {
