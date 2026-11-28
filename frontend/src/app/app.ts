@@ -3,6 +3,8 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import {
   LucideActivity,
+  LucideArrowLeft,
+  LucideArrowRight,
   LucideArrowUpRight,
   LucideBell,
   LucideCalendarDays,
@@ -33,7 +35,6 @@ import {
   LucideTrash,
   LucideUsers,
   LucideWheat,
-  LucideExternalLink,
   LucideX
 } from '@lucide/angular';
 import { AuthService } from './core/auth/auth.service';
@@ -45,9 +46,18 @@ import { SpeechService } from './core/assistant/speech.service';
 import { AppConfigService } from './core/config/app-config.service';
 import { CurrentWeather, WeatherService } from './core/weather/weather.service';
 import { FarmerDataStorageService } from './core/storage/farmer-data-storage.service';
+import {
+  cropDateForDay,
+  cropDayForDate,
+  cropStageForDay,
+  normalizeCropCycleDays,
+  type CropStage
+} from './core/crops/crop-lifecycle';
+import { MarketPrice, MarketPriceService } from './core/market/market-price.service';
+import { CropGrowthIllustrationComponent } from './features/crops/crop-growth-illustration.component';
 
 type Page = 'dashboard' | 'farms' | 'crops' | 'activities' | 'assistant' | 'farmers'
-  | 'weather' | 'market' | 'crop-health' | 'reports' | 'profile';
+  | 'weather' | 'market' | 'crop-health' | 'reports' | 'profile' | 'crop-report';
 type AreaUnit = 'એકર' | 'હેક્ટર';
 
 interface FarmRecord {
@@ -66,6 +76,7 @@ interface CropRecord {
   name: string;
   variety: string;
   sowingDate: string;
+  cycleDays?: number;
   status: string;
 }
 
@@ -110,7 +121,10 @@ interface ChatMessage {
     FormsModule,
     AuthScreenComponent,
     FarmerLocationFieldsComponent,
+    CropGrowthIllustrationComponent,
     LucideActivity,
+    LucideArrowLeft,
+    LucideArrowRight,
     LucideArrowUpRight,
     LucideBell,
     LucideCalendarDays,
@@ -141,7 +155,6 @@ interface ChatMessage {
     LucideTrash,
     LucideUsers,
     LucideWheat,
-    LucideExternalLink,
     LucideX
   ],
   templateUrl: './app.html',
@@ -156,9 +169,11 @@ export class App implements OnInit {
   private readonly speech = inject(SpeechService);
   private readonly weatherService = inject(WeatherService);
   private readonly farmerStorage = inject(FarmerDataStorageService);
+  private readonly marketPriceService = inject(MarketPriceService);
 
   protected readonly isReady = signal(false);
-  protected readonly showLanguageChoice = signal(false);
+  protected readonly showWelcomeScreen = signal(false);
+  protected readonly welcomeLanguage = signal<LanguageCode>(this.language.language());
   protected readonly languageChoiceSaving = signal(false);
   protected readonly activePage = signal<Page>('dashboard');
   protected readonly pageTitle = computed(() => this.language.translate(`page.${this.activePage()}`));
@@ -171,6 +186,13 @@ export class App implements OnInit {
   protected readonly todayActivityCount = computed(() => {
     return this.activities().filter(activity => activity.date === this.localDateString()).length;
   });
+  protected readonly dashboardCrop = computed(() => {
+    const crops = this.crops();
+    return crops.length === 0 ? null : crops[this.cropCarouselIndex() % crops.length];
+  });
+  protected readonly selectedCrop = computed(() =>
+    this.crops().find(crop => crop.id === this.selectedCropId()) ?? null
+  );
 
   protected readonly farms = signal<FarmRecord[]>([]);
   protected readonly crops = signal<CropRecord[]>([]);
@@ -207,6 +229,17 @@ export class App implements OnInit {
   protected readonly weatherError = signal('');
   protected readonly healthCrop = signal('');
   protected readonly healthSymptoms = signal('');
+  protected readonly cropCarouselIndex = signal(0);
+  protected readonly selectedCropId = signal<number | null>(null);
+  protected readonly cropReportReturnPage = signal<Page>('dashboard');
+  protected readonly selectedTimelineDay = signal(0);
+  protected readonly marketCommodity = signal('Potato');
+  protected readonly marketState = signal('');
+  protected readonly marketDistrict = signal('');
+  protected readonly marketName = signal('');
+  protected readonly marketPrices = signal<MarketPrice[]>([]);
+  protected readonly marketLoading = signal(false);
+  protected readonly marketError = signal('');
 
   protected farmDraft = this.emptyFarm();
   protected cropDraft = this.emptyCrop();
@@ -255,6 +288,7 @@ export class App implements OnInit {
   protected onAuthenticated(): void {
     this.loadFarmerLocalData();
     this.isReady.set(true);
+    this.showWelcomeScreen.set(false);
     this.activePage.set('dashboard');
     if (this.messages().length === 0) this.clearChat();
     this.auth.restoreSession().subscribe(() => {
@@ -262,14 +296,21 @@ export class App implements OnInit {
     });
   }
 
-  protected async choosePreferredLanguage(language: LanguageCode): Promise<void> {
+  protected welcomeLanguageChanged(language: LanguageCode): void {
+    this.welcomeLanguage.set(language);
+    void this.language.setLanguage(language);
+  }
+
+  protected async startWelcome(): Promise<void> {
     if (this.languageChoiceSaving()) return;
     this.languageChoiceSaving.set(true);
-    await this.language.setLanguage(language);
-    this.isReady.set(false);
-    this.showLanguageChoice.set(false);
-    this.restoreSession();
-    this.languageChoiceSaving.set(false);
+    try {
+      await this.language.setLanguage(this.welcomeLanguage());
+      this.showWelcomeScreen.set(false);
+      this.isReady.set(true);
+    } finally {
+      this.languageChoiceSaving.set(false);
+    }
   }
 
   protected changeLanguage(language: LanguageCode): void {
@@ -286,6 +327,7 @@ export class App implements OnInit {
     this.crops.set([]);
     this.activities.set([]);
     this.messages.set([]);
+    this.showWelcomeScreen.set(true);
     this.activePage.set('dashboard');
   }
 
@@ -336,6 +378,109 @@ export class App implements OnInit {
     this.activePage.set(page);
     this.mobileNavOpen.set(false);
     if (page === 'farmers') this.loadFarmers();
+    if (page === 'market') {
+      const farmer = this.auth.farmer();
+      if (!this.marketState()) this.marketState.set(farmer?.state || 'Gujarat');
+      if (!this.marketDistrict() && farmer?.district) this.marketDistrict.set(farmer.district);
+      this.searchMarketPrices();
+    }
+  }
+
+  protected cycleDays(crop: CropRecord): number {
+    return normalizeCropCycleDays(crop.cycleDays);
+  }
+
+  protected currentCropDay(crop: CropRecord): number {
+    return Math.min(cropDayForDate(crop.sowingDate), this.cycleDays(crop));
+  }
+
+  protected cropStage(crop: CropRecord, day = this.currentCropDay(crop)): CropStage {
+    return cropStageForDay(crop.name, day, this.cycleDays(crop));
+  }
+
+  protected cropStageLabel(crop: CropRecord, day = this.currentCropDay(crop)): string {
+    return this.t(`crop.stage.${this.cropStage(crop, day)}`);
+  }
+
+  protected cropTip(crop: CropRecord, day = this.currentCropDay(crop)): string {
+    const stage = this.cropStage(crop, day);
+    const tipKey = stage === 'flowering' ? 'reproductive' : stage;
+    return this.t(`crop.tip.${tipKey}`);
+  }
+
+  protected cropProgress(crop: CropRecord, day = this.currentCropDay(crop)): number {
+    return Math.round(day / this.cycleDays(crop) * 100);
+  }
+
+  protected cropDateLabel(crop: CropRecord, day: number): string {
+    const date = cropDateForDay(crop.sowingDate, day);
+    if (!date) return this.t('crop.stage.planned');
+    return new Intl.DateTimeFormat(this.language.locale(), {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC'
+    }).format(new Date(`${date}T00:00:00Z`));
+  }
+
+  protected openCropTimeline(crop: CropRecord): void {
+    if (!crop.sowingDate) {
+      this.openCropDialog(crop);
+      return;
+    }
+    this.cropReportReturnPage.set(this.activePage());
+    this.selectedCropId.set(crop.id);
+    this.selectedTimelineDay.set(this.currentCropDay(crop));
+    this.setPage('crop-report');
+  }
+
+  protected closeCropTimeline(): void {
+    this.setPage(this.cropReportReturnPage());
+  }
+
+  protected setTimelineDay(event: Event): void {
+    const crop = this.selectedCrop();
+    const input = event.target as HTMLInputElement;
+    if (!crop) return;
+    const day = Number(input.value);
+    if (!Number.isFinite(day)) return;
+    this.selectedTimelineDay.set(Math.min(Math.max(0, day), this.cycleDays(crop)));
+  }
+
+  protected moveCropCarousel(direction: -1 | 1): void {
+    const count = this.crops().length;
+    if (count < 2) return;
+    this.cropCarouselIndex.update(index => (index + direction + count) % count);
+  }
+
+  protected searchMarketPrices(): void {
+    const commodity = this.marketCommodity().trim();
+    if (!commodity) {
+      this.marketPrices.set([]);
+      this.marketError.set(this.t('market.commodityRequired'));
+      return;
+    }
+
+    this.marketLoading.set(true);
+    this.marketError.set('');
+    this.marketPrices.set([]);
+    this.marketPriceService.search(
+      commodity,
+      this.marketState().trim() || 'Gujarat',
+      this.marketDistrict(),
+      this.marketName()
+    ).subscribe({
+      next: prices => {
+        this.marketPrices.set(prices);
+        this.marketLoading.set(false);
+      },
+      error: response => {
+        this.marketLoading.set(false);
+        this.marketError.set(response.status === 503
+          ? this.t('market.setupRequired')
+          : this.t('market.fetchFailed'));
+      }
+    });
   }
 
   protected weatherCondition(): string {
@@ -400,7 +545,9 @@ export class App implements OnInit {
 
   protected openCropDialog(crop?: CropRecord): void {
     this.localEditId.set(crop?.id ?? null);
-    this.cropDraft = crop ? { ...crop } : this.emptyCrop();
+    this.cropDraft = crop
+      ? { ...crop, cycleDays: normalizeCropCycleDays(crop.cycleDays) }
+      : this.emptyCrop();
     this.localDialog.set('crop');
   }
 
@@ -418,7 +565,10 @@ export class App implements OnInit {
 
   protected saveCrop(): void {
     const id = this.localEditId() ?? Date.now();
-    this.persistList('km-crops', this.crops, this.cropDraft, id);
+    this.persistList('km-crops', this.crops, {
+      ...this.cropDraft,
+      cycleDays: normalizeCropCycleDays(this.cropDraft.cycleDays)
+    }, id);
     this.localDialog.set(null);
   }
 
@@ -697,8 +847,9 @@ export class App implements OnInit {
 
   private async initializeApplication(): Promise<void> {
     await this.language.initialize();
-    if (!this.language.hasSavedPreference()) {
-      this.showLanguageChoice.set(true);
+    this.welcomeLanguage.set(this.language.language());
+    if (!this.auth.token()) {
+      this.showWelcomeScreen.set(true);
       this.isReady.set(true);
       return;
     }
@@ -716,6 +867,7 @@ export class App implements OnInit {
         this.crops.set([]);
         this.activities.set([]);
         this.messages.set([]);
+        this.showWelcomeScreen.set(true);
       }
       this.isReady.set(true);
     });
@@ -737,7 +889,14 @@ export class App implements OnInit {
   }
 
   private emptyCrop(): Omit<CropRecord, 'id'> {
-    return { farmName: '', name: '', variety: '', sowingDate: '', status: 'વાવણીનું આયોજન' };
+    return {
+      farmName: '',
+      name: '',
+      variety: '',
+      sowingDate: '',
+      cycleDays: 90,
+      status: 'વાવણીનું આયોજન'
+    };
   }
 
   private emptyActivity(): Omit<ActivityRecord, 'id'> {

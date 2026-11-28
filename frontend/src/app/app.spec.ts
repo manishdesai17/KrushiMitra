@@ -22,7 +22,7 @@ describe('App', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('asks for a language preference before first use', async () => {
+  it('shows the welcome screen before first use', async () => {
     sessionStorage.removeItem('km-access-token');
     localStorage.removeItem('km-language');
     const fixture = TestBed.createComponent(App);
@@ -37,7 +37,7 @@ describe('App', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.language-choice-screen')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.welcome-screen')).not.toBeNull();
     http.verify();
   });
 
@@ -48,6 +48,12 @@ describe('App', () => {
 
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/assets/i18n/en.json').flush({});
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.welcome-start').click();
+    const welcomeLanguage = http.expectOne('/assets/i18n/en.json');
+    welcomeLanguage.flush({});
     await fixture.whenStable();
     fixture.detectChanges();
 

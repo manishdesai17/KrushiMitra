@@ -11,4 +11,5 @@ export class AppConfigService {
   readonly authUrl = `${this.apiUrl}/api/auth`;
   readonly farmersUrl = `${this.apiUrl}/api/farmers`;
   readonly conversationsUrl = `${this.apiUrl}/api/ai/conversations`;
+  readonly marketPricesUrl = `${this.apiUrl}/api/market/prices`;
 }

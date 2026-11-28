@@ -48,7 +48,9 @@ Angular (Gujarati UI, port 4200)
                             └── PostgreSQL: Flyway-managed schema
 ```
 
-Farmer registration is stored through the REST API. Farm, crop, activity, and mock-chat screens are usable prototypes saved in this browser's local storage; those records are not yet sent to the server. Weather and market cards explicitly show that no live provider is configured. The assistant is a local mock and is not an agricultural expert.
+Farmer registration is stored through the REST API. Farm, crop, activity, and mock-chat records are saved in this browser's local storage; those records are not yet sent to the server. The weather view requests the device location before loading a forecast. Crop stage illustrations and advice are approximate educational guidance based on the entered sowing date and expected crop-cycle length; they are not generated crop photos, observations, diagnoses, or AI recommendations. The assistant is a local mock and is not an agricultural expert.
+
+The market-price view reads official Data.gov.in market records through the backend. Live prices remain unavailable until a Data.gov.in API key is configured on the server. The application does not fabricate sample prices.
 
 The seven initial PostgreSQL tables are created by `backend/src/main/resources/db/migration/V1__create_initial_schema.sql`: `mst_user`, `mst_farmer`, `mst_farm`, `mst_crop`, `trn_crop_activity`, `trn_ai_conversation`, and `trn_ai_message`. Password hashes are generated with BCrypt and are never included in API responses.
 
@@ -79,6 +81,14 @@ Prerequisites: Java 17+, Node.js 20.19+ or 22.12+, npm, and Docker Desktop (or a
    Open `http://localhost:4200`.
 
 The API uses `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` when provided; defaults point to the local Compose database. On the first API startup, Flyway creates the schema.
+
+### Configure live market prices
+
+1. Create a free API key for the Data.gov.in market-price resource.
+2. Set `MARKET_DATA_API_KEY` as a backend environment variable (for example, in the Render service's Environment settings). The key is read by Spring Boot and must never be added to Angular configuration or committed to the repository.
+3. Restart or redeploy the backend. The authenticated endpoint `GET /api/market/prices` will then return official price records for the selected commodity and location.
+
+If the key is missing or the provider is unavailable, the market view reports that state rather than showing invented prices.
 
 ## Farmer API
 
